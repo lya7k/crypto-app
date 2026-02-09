@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Exchange</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: var(--tg-theme-bg-color, #1c1c1e);
+            color: var(--tg-theme-text-color, #ffffff);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .card {
+            background-color: var(--tg-theme-secondary-bg-color, #2c2c2e);
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 350px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        h1 { font-size: 22px; margin-bottom: 10px; }
+        .input-group { margin-bottom: 15px; width: 100%; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; color: #8e8e93; }
+        input {
+            width: 90%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #3a3a3c;
+            background-color: var(--tg-theme-bg-color, #000);
+            color: var(--tg-theme-text-color, #fff);
+            font-size: 18px;
+        }
+        .btn {
+            background-color: #007aff;
+            color: white;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn:active { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <h1>💱 Обмен USDT</h1>
+
+    <div class="card">
+        <div class="input-group">
+            <label>Отдаете (RUB):</label>
+            <input type="number" id="rub" placeholder="10000" oninput="calculate()">
+        </div>
+        <div class="input-group">
+            <label>Получаете (USDT):</label>
+            <input type="number" id="usdt" readonly>
+        </div>
+        <p style="font-size: 12px; color: gray;">Курс: 1 USDT = 98.5 RUB</p>
+    </div>
+
+    <button class="btn" onclick="buy()">КУПИТЬ USDT</button>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand(); // Растянуть на весь экран
+
+        let rate = 98.5; // Курс обмена
+
+        function calculate() {
+            let rub = document.getElementById('rub').value;
+            if(rub > 0) {
+                let result = (rub / rate).toFixed(2);
+                document.getElementById('usdt').value = result;
+            } else {
+                document.getElementById('usdt').value = "";
+            }
+        }
+
+        function buy() {
+            let rub = document.getElementById('rub').value;
+            if (rub < 1000) {
+                tg.showAlert("Минимальная сумма: 1000 RUB");
+            } else {
+                tg.showConfirm(`Вы уверены, что хотите купить USDT на ${rub} рублей?`, function(ok) {
+                    if (ok) {
+                        tg.close(); // Пока просто закрываем окно
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html> 
