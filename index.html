@@ -87,7 +87,11 @@
         }
 
         // Кнопка КУПИТЬ
+        // Кнопка КУПИТЬ
         function buy() {
+            // ВОТ ЭТУ СТРОКУ ДОБАВЬ ДЛЯ ПРОВЕРКИ:
+            tg.showAlert("Я работаю! Сейчас отправлю данные."); 
+
             let rub = document.getElementById('rub').value;
             let usdt = document.getElementById('usdt').value;
 
@@ -96,16 +100,11 @@
                 return;
             }
 
-            // Формируем данные для отправки боту
             let data = {
                 action: "create_order",
                 amount_rub: rub,
                 amount_usdt: usdt
             };
 
-            // Отправляем данные боту (в формате JSON)
             tg.sendData(JSON.stringify(data)); 
         }
-    </script>
-</body>
-</html>
