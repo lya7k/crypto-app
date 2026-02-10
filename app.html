@@ -3,48 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Exchange V2</title>
+    <title>Crypto Exchange V3</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { font-family: sans-serif; background-color: #222; color: #fff; padding: 20px; text-align: center; }
         input { width: 80%; padding: 10px; margin: 10px 0; font-size: 16px; border-radius: 5px; }
         button { width: 100%; padding: 15px; background: #007aff; color: white; border: none; border-radius: 10px; font-size: 18px; margin-top: 20px; }
+        #debug { color: yellow; font-size: 12px; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h1>ТЕСТОВАЯ ВЕРСИЯ</h1>
-    <p>Если ты это видишь - сайт обновился.</p>
-
+    <h1>ВЕРСИЯ 3.0</h1>
+    
     <label>Сумма RUB:</label>
     <input type="number" id="rub" value="5000">
 
-    <button onclick="debugBuy()">КУПИТЬ (ТЕСТ)</button>
+    <button onclick="debugBuy()">КУПИТЬ (FINAL)</button>
+
+    <div id="debug"></div>
 
     <script>
+        // 1. Инициализация
         let tg = window.Telegram.WebApp;
-        tg.expand();
+        tg.expand(); 
+        tg.ready(); // <--- САМАЯ ВАЖНАЯ КОМАНДА! Она говорит Телеграму "Я готов работать"
 
         function debugBuy() {
-            // 1. Проверка: работает ли кнопка вообще
-            alert("Шаг 1: Кнопка нажата!");
-
             let rub = document.getElementById('rub').value;
-            
+            let log = document.getElementById('debug');
+
+            // Проверка: видит ли нас Телеграм?
+            if (!tg.initData) {
+                log.innerHTML = "ОШИБКА: Нет связи с Telegram! (initData пуст)";
+                alert("Ошибка: Откройте это через кнопку в боте, а не по ссылке!");
+                return;
+            }
+
             let data = {
                 action: "create_order",
                 amount_rub: rub,
                 amount_usdt: (rub / 98.5).toFixed(2)
             };
 
-            // 2. Проверка: готовы ли данные
-            alert("Шаг 2: Данные готовы: " + JSON.stringify(data));
-
             try {
-                // 3. Отправка
+                log.innerHTML = "Попытка отправки...";
                 tg.sendData(JSON.stringify(data));
-                alert("Шаг 3: Команда sendData отправлена!"); // Если это появилось - сайт отработал
+                
+                // Если sendData сработал, код ниже может не успеть выполниться (и это хорошо)
+                log.innerHTML = "Данные отправлены! Окно должно закрыться.";
+                
+                // На всякий случай принудительно закрываем (для старых версий)
+                setTimeout(function() {
+                    tg.close();
+                }, 500);
+                
             } catch (e) {
-                alert("ОШИБКА: " + e);
+                log.innerHTML = "ОШИБКА JS: " + e;
+                alert("Ошибка: " + e);
             }
         }
     </script>
