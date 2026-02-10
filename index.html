@@ -73,8 +73,13 @@
         let tg = window.Telegram.WebApp;
         tg.expand(); // Растянуть на весь экран
 
-        let rate = 98.5; // Курс обмена
+        // Настраиваем цвета под тему Телеграма
+        document.body.style.backgroundColor = tg.themeParams.bg_color;
+        document.body.style.color = tg.themeParams.text_color;
 
+        let rate = 98.5; // Твой курс
+
+        // Калькулятор
         function calculate() {
             let rub = document.getElementById('rub').value;
             if(rub > 0) {
@@ -85,18 +90,27 @@
             }
         }
 
+        // Кнопка КУПИТЬ
         function buy() {
             let rub = document.getElementById('rub').value;
+            let usdt = document.getElementById('usdt').value;
+
             if (rub < 1000) {
                 tg.showAlert("Минимальная сумма: 1000 RUB");
-            } else {
-                tg.showConfirm(`Вы уверены, что хотите купить USDT на ${rub} рублей?`, function(ok) {
-                    if (ok) {
-                        tg.close(); // Пока просто закрываем окно
-                    }
-                });
+                return;
             }
+
+            // Формируем "записку" для бота
+            let data = {
+                action: "create_order",
+                amount_rub: rub,
+                amount_usdt: usdt
+            };
+
+            // Отправляем данные боту (в формате JSON текста)
+            tg.sendData(JSON.stringify(data)); 
         }
     </script>
+
 </body>
 </html>
