@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Exchange V2</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #222; color: #fff; padding: 20px; text-align: center; }
+        input { width: 80%; padding: 10px; margin: 10px 0; font-size: 16px; border-radius: 5px; }
+        button { width: 100%; padding: 15px; background: #007aff; color: white; border: none; border-radius: 10px; font-size: 18px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>ТЕСТОВАЯ ВЕРСИЯ</h1>
+    <p>Если ты это видишь - сайт обновился.</p>
+
+    <label>Сумма RUB:</label>
+    <input type="number" id="rub" value="5000">
+
+    <button onclick="debugBuy()">КУПИТЬ (ТЕСТ)</button>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        function debugBuy() {
+            // 1. Проверка: работает ли кнопка вообще
+            alert("Шаг 1: Кнопка нажата!");
+
+            let rub = document.getElementById('rub').value;
+            
+            let data = {
+                action: "create_order",
+                amount_rub: rub,
+                amount_usdt: (rub / 98.5).toFixed(2)
+            };
+
+            // 2. Проверка: готовы ли данные
+            alert("Шаг 2: Данные готовы: " + JSON.stringify(data));
+
+            try {
+                // 3. Отправка
+                tg.sendData(JSON.stringify(data));
+                alert("Шаг 3: Команда sendData отправлена!"); // Если это появилось - сайт отработал
+            } catch (e) {
+                alert("ОШИБКА: " + e);
+            }
+        }
+    </script>
+</body>
+</html>
