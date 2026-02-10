@@ -58,7 +58,7 @@
     <div class="card">
         <div class="input-group">
             <label>Отдаете (RUB):</label>
-            <input type="number" id="rub" placeholder="10000" oninput="calculate()">
+            <input type="number" id="rub" placeholder="5000" oninput="calculate()">
         </div>
         <div class="input-group">
             <label>Получаете (USDT):</label>
@@ -72,10 +72,6 @@
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand(); // Растянуть на весь экран
-
-        // Настраиваем цвета под тему Телеграма
-        document.body.style.backgroundColor = tg.themeParams.bg_color;
-        document.body.style.color = tg.themeParams.text_color;
 
         let rate = 98.5; // Твой курс
 
@@ -100,17 +96,16 @@
                 return;
             }
 
-            // Формируем "записку" для бота
+            // Формируем данные для отправки боту
             let data = {
                 action: "create_order",
                 amount_rub: rub,
                 amount_usdt: usdt
             };
 
-            // Отправляем данные боту (в формате JSON текста)
+            // Отправляем данные боту (в формате JSON)
             tg.sendData(JSON.stringify(data)); 
         }
     </script>
-
 </body>
 </html>
