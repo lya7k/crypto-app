@@ -158,25 +158,13 @@
                 }
             });
         }
+
         function matchOrders() {
             if (!selectedBuyer || !selectedSeller) { 
                 tg.showAlert("Выберите пару: 1 покупатель и 1 продавец!"); 
                 return; 
             }
             
-            // ОТЛАДКА: Показываем, что кнопка нажалась
-            tg.showAlert("Отправка данных..."); 
-
-            let data = {
-                action: 'match_orders',
-                buyer_order_id: selectedBuyer.id,
-                seller_order_id: selectedSeller.id
-            };
-            
-            // Отправляем
-            tg.sendData(JSON.stringify(data));
-        }
-          
             // ПРЯМАЯ ОТПРАВКА БЕЗ ВОПРОСОВ (ЧТОБЫ НЕ ГЛЮЧИЛО)
             let data = {
                 action: 'match_orders',
@@ -184,7 +172,7 @@
                 seller_order_id: selectedSeller.id
             };
             tg.sendData(JSON.stringify(data));
-         
+        }
     </script>
 </body>
 </html>
