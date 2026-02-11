@@ -105,19 +105,25 @@
                 // Ищем кусок текста после "data="
                 let match = hash.match(/data=([^&]*)/);
                 
+                if (isAdmin) {
+                document.getElementById('adminView').style.display = 'block';
+                
+                // РАСПАКОВКА BASE64
+                let hash = window.location.hash;
+                let match = hash.match(/data=([^&]*)/);
+                
                 if(match && match[1]) {
-                    let b64 = match[1];
-                    // Расшифровываем Base64 (с поддержкой русских букв)
-                    let json = decodeURIComponent(escape(window.atob(b64)));
-                    let orders = JSON.parse(json);
-                    renderAdmin(orders);
-                } else {
-                    // Если данных нет, но мы админ - просто пусто
-                    console.log("Нет данных orders");
+                    try {
+                        // Декодируем Base64 -> JSON -> Объект
+                        // atob - встроенная функция браузера для Base64
+                        let json = decodeURIComponent(escape(window.atob(match[1])));
+                        let orders = JSON.parse(json);
+                        renderAdmin(orders);
+                    } catch(e) {
+                        alert("Ошибка чтения данных: " + e);
+                    }
                 }
-                // ------------------------------------------
-
-            } else {
+            }
                 document.getElementById('clientView').style.display = 'block';
                 setMode('buy');
             }
