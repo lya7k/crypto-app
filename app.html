@@ -76,7 +76,7 @@
     </div>
 
     <script>
-        // 1. ЛОВЕЦ ОШИБОК (Покажет ошибку на экране, если она есть)
+        // ЛОВЕЦ ОШИБОК
         window.onerror = function(message, source, lineno, colno, error) {
             document.getElementById('error-log').style.display = 'block';
             document.getElementById('error-log').innerText = "ОШИБКА: " + message;
@@ -86,12 +86,10 @@
         tg.expand();
         tg.ready();
 
-        // Переменные
         let currentMode = 'buy';
         let buyRate = 98.5;
         let sellRate = 95.0;
-        
-        // Читаем параметры из ссылки
+
         try {
             const urlParams = new URLSearchParams(window.location.search);
             if(urlParams.get('buy')) buyRate = parseFloat(urlParams.get('buy'));
@@ -101,19 +99,33 @@
 
             if (isAdmin) {
                 document.getElementById('adminView').style.display = 'block';
-                // Читаем данные админа из хеша
-                if(window.location.hash) {
-                    let json = decodeURIComponent(window.location.hash.substring(1));
+                
+                // --- НОВАЯ ЛОГИКА РАСПАКОВКИ (BASE64) ---
+                let hash = window.location.hash;
+                // Ищем кусок текста после "data="
+                let match = hash.match(/data=([^&]*)/);
+                
+                if(match && match[1]) {
+                    let b64 = match[1];
+                    // Расшифровываем Base64 (с поддержкой русских букв)
+                    let json = decodeURIComponent(escape(window.atob(b64)));
                     let orders = JSON.parse(json);
                     renderAdmin(orders);
+                } else {
+                    // Если данных нет, но мы админ - просто пусто
+                    console.log("Нет данных orders");
                 }
+                // ------------------------------------------
+
             } else {
                 document.getElementById('clientView').style.display = 'block';
-                setMode('buy'); // Запускаем режим покупки
+                setMode('buy');
             }
         } catch (e) {
             alert("Ошибка инициализации: " + e);
         }
+
+        // ... ДАЛЬШЕ ИДУТ ФУНКЦИИ setMode, calc, renderAdmin и т.д. (их не трогай) ...
 
         // --- ФУНКЦИИ КЛИЕНТА ---
         function setMode(mode) {
