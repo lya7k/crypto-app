@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Exchange Final</title>
+    <title>P2P Exchange</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { font-family: sans-serif; background: #1c1c1e; color: #fff; padding: 15px; margin: 0; }
@@ -62,7 +62,7 @@
                 <div id="sellersList"></div>
             </div>
         </div>
-        <button class="btn" style="background:#32d74b;" onclick="matchOrders()">СВЯЗАТЬ</button>
+        <button class="btn" style="background:#32d74b;" onclick="matchOrders()">СВЯЗАТЬ (Жми!)</button>
     </div>
 
     <script>
@@ -74,7 +74,6 @@
         let currentMode = 'buy';
         let buyRate = 98.5; let sellRate = 95.0;
 
-        // Инициализация
         try {
             const urlParams = new URLSearchParams(window.location.search);
             if(urlParams.get('buy')) buyRate = parseFloat(urlParams.get('buy'));
@@ -87,7 +86,6 @@
                 let hash = window.location.hash;
                 let match = hash.match(/data=([^&]*)/);
                 if(match && match[1]) {
-                    // Декодируем Base64 с поддержкой UTF-8
                     let json = decodeURIComponent(escape(window.atob(match[1])));
                     let orders = JSON.parse(json);
                     renderAdmin(orders);
@@ -162,16 +160,18 @@
         }
 
         function matchOrders() {
-            if (!selectedBuyer || !selectedSeller) { tg.showAlert("Выберите пару!"); return; }
-            tg.showConfirm(`Связать @${selectedBuyer.username} и @${selectedSeller.username}?`, (ok) => {
-                if(ok) {
-                    tg.sendData(JSON.stringify({
-                        action: 'match_orders',
-                        buyer_order_id: selectedBuyer.id,
-                        seller_order_id: selectedSeller.id
-                    }));
-                }
-            });
+            if (!selectedBuyer || !selectedSeller) { 
+                tg.showAlert("Выберите пару: 1 покупатель и 1 продавец!"); 
+                return; 
+            }
+            
+            // ПРЯМАЯ ОТПРАВКА БЕЗ ВОПРОСОВ (ЧТОБЫ НЕ ГЛЮЧИЛО)
+            let data = {
+                action: 'match_orders',
+                buyer_order_id: selectedBuyer.id,
+                seller_order_id: selectedSeller.id
+            };
+            tg.sendData(JSON.stringify(data));
         }
     </script>
 </body>
