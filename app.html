@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Обмен USDT</title>
+    <title>Crypto Exchange P2P</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--tg-theme-bg-color, #1c1c1e);
             color: var(--tg-theme-text-color, #ffffff);
             padding: 20px;
@@ -15,99 +15,146 @@
             flex-direction: column;
             align-items: center;
         }
+        /* Переключатель Купить/Продать */
+        .tabs {
+            display: flex;
+            background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 350px;
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .tab.active {
+            background: var(--tg-theme-button-color, #007aff);
+            color: white;
+        }
+        
         .card {
             background-color: var(--tg-theme-secondary-bg-color, #2c2c2e);
             padding: 20px;
             border-radius: 16px;
             width: 100%;
             max-width: 350px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             margin-bottom: 24px;
         }
-        label {
-            font-size: 13px;
-            color: var(--tg-theme-hint-color, #8e8e93);
-            margin-bottom: 8px;
-            display: block;
-        }
+        label { font-size: 13px; color: #8e8e93; display: block; margin-bottom: 8px; }
         input {
-            width: 90%;
-            padding: 14px;
-            font-size: 20px;
-            border-radius: 12px;
-            border: 1px solid var(--tg-theme-hint-color, #3a3a3c);
-            background-color: var(--tg-theme-bg-color, #000);
-            color: var(--tg-theme-text-color, #fff);
-            outline: none;
-            margin-bottom: 16px;
+            width: 90%; padding: 14px; font-size: 20px; border-radius: 12px;
+            border: 1px solid #3a3a3c; background: #000; color: #fff; outline: none; margin-bottom: 16px;
         }
-        input:focus { border-color: #007aff; }
         
         .btn {
             background-color: var(--tg-theme-button-color, #007aff);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            font-size: 17px;
-            font-weight: 600;
-            padding: 16px;
-            width: 100%;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: opacity 0.2s;
+            color: white; font-size: 17px; font-weight: 600; padding: 16px;
+            width: 100%; border: none; border-radius: 12px; cursor: pointer;
         }
-        .btn:active { opacity: 0.8; }
-        
-        .info { font-size: 13px; color: var(--tg-theme-hint-color, #8e8e93); margin-top: 10px; }
+        .info { font-size: 13px; color: #8e8e93; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <label>Отдаете (RUB):</label>
-        <input type="number" id="rub" placeholder="5000" oninput="calc()">
-
-        <label>Получаете (USDT):</label>
-        <input type="number" id="usdt" readonly>
-        
-        <div class="info">Курс обмена: 98.5 RUB</div>
+    <!-- Вкладки -->
+    <div class="tabs">
+        <div class="tab active" id="tabBuy" onclick="setMode('buy')">КУПИТЬ</div>
+        <div class="tab" id="tabSell" onclick="setMode('sell')">ПРОДАТЬ</div>
     </div>
 
-    <button class="btn" onclick="sendOrder()">ОФОРМИТЬ ЗАЯВКУ</button>
+    <div class="card">
+        <label id="labelGive">Отдаете (RUB):</label>
+        <input type="number" id="input1" placeholder="5000" oninput="calc()">
+
+        <label id="labelGet">Получаете (USDT):</label>
+        <input type="number" id="input2" readonly>
+        
+        <div class="info" id="rateInfo">Загрузка курса...</div>
+    </div>
+
+    <!-- Поле для карты продавца (скрыто при покупке) -->
+    <div class="card" id="cardField" style="display:none;">
+        <label>Ваша карта (куда прислать рубли):</label>
+        <input type="text" id="userCard" placeholder="0000 0000 0000 0000">
+    </div>
+
+    <button class="btn" onclick="sendOrder()" id="mainBtn">ОФОРМИТЬ ЗАЯВКУ</button>
 
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand();
-        tg.ready(); // Сообщаем, что готовы
+        tg.ready();
 
-        let rate = 98.5;
+        // 1. Получаем курсы из Ссылки (URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        let buyRate = parseFloat(urlParams.get('buy')) || 98.5;  // Курс покупки
+        let sellRate = parseFloat(urlParams.get('sell')) || 95.0; // Курс продажи
+
+        let currentMode = 'buy'; // 'buy' или 'sell'
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('input1').value = "";
+            document.getElementById('input2').value = "";
+
+            if (mode === 'buy') {
+                document.getElementById('tabBuy').classList.add('active');
+                document.getElementById('tabSell').classList.remove('active');
+                document.getElementById('labelGive').innerText = "Отдаете (RUB):";
+                document.getElementById('labelGet').innerText = "Получаете (USDT):";
+                document.getElementById('rateInfo').innerText = `Курс: 1 USDT = ${buyRate} RUB`;
+                document.getElementById('mainBtn').innerText = "КУПИТЬ USDT";
+                document.getElementById('cardField').style.display = 'none';
+            } else {
+                document.getElementById('tabBuy').classList.remove('active');
+                document.getElementById('tabSell').classList.add('active');
+                document.getElementById('labelGive').innerText = "Отдаете (USDT):";
+                document.getElementById('labelGet').innerText = "Получаете (RUB):";
+                document.getElementById('rateInfo').innerText = `Курс: 1 USDT = ${sellRate} RUB`;
+                document.getElementById('mainBtn').innerText = "ПРОДАТЬ USDT";
+                document.getElementById('cardField').style.display = 'block';
+            }
+        }
 
         function calc() {
-            let rub = document.getElementById('rub').value;
-            if(rub > 0) {
-                document.getElementById('usdt').value = (rub / rate).toFixed(2);
+            let val = parseFloat(document.getElementById('input1').value);
+            if (!val) { document.getElementById('input2').value = ""; return; }
+
+            if (currentMode === 'buy') {
+                // Рубли -> USDT
+                document.getElementById('input2').value = (val / buyRate).toFixed(2);
             } else {
-                document.getElementById('usdt').value = "";
+                // USDT -> Рубли
+                document.getElementById('input2').value = (val * sellRate).toFixed(0);
             }
         }
 
         function sendOrder() {
-            let rub = document.getElementById('rub').value;
-            let usdt = document.getElementById('usdt').value;
+            let val1 = document.getElementById('input1').value; // Сколько отдает
+            let val2 = document.getElementById('input2').value; // Сколько получает
+            let card = document.getElementById('userCard').value;
 
-            if (rub < 1000) {
-                tg.showAlert("Минимальная сумма: 1000 RUB");
-                return;
-            }
+            if (!val1 || val1 <= 0) return;
 
             let data = {
-                action: "create_order",
-                amount_rub: rub,
-                amount_usdt: usdt
+                action: currentMode === 'buy' ? 'create_buy_order' : 'create_sell_order',
+                amount_give: val1,
+                amount_get: val2,
+                user_card: card
             };
 
-            // Отправляем данные без лишних алертов
             tg.sendData(JSON.stringify(data));
         }
+
+        // Запуск при старте
+        setMode('buy');
     </script>
 </body>
 </html>
