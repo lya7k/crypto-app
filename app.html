@@ -3,37 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Exchange Fixed</title>
+    <title>P2P Exchange Final</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { font-family: sans-serif; background: #1c1c1e; color: #fff; padding: 15px; margin: 0; }
-        
-        /* Стили */
         .tabs { display: flex; background: #2c2c2e; border-radius: 12px; padding: 4px; margin-bottom: 20px; }
         .tab { flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .tab.active { background: #007aff; color: white; }
-        
         .card { background: #2c2c2e; padding: 15px; border-radius: 16px; margin-bottom: 15px; }
-        
         label { display: block; color: #8e8e93; margin-bottom: 5px; font-size: 14px; }
         input { width: 90%; padding: 12px; background: #000; border: 1px solid #3a3a3c; color: #fff; border-radius: 10px; font-size: 18px; margin-bottom: 10px; outline: none; }
-        
         .btn { background: #007aff; color: white; padding: 15px; width: 100%; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn:active { opacity: 0.8; }
-
+        
         /* Админка */
         .admin-view { display: none; }
         .client-view { display: none; }
         .order-item { background: #3a3a3c; padding: 10px; margin-bottom: 5px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 2px solid transparent; }
-        .order-item.selected { border-color: #32d74b; }
+        .order-item.selected { border-color: #32d74b; background: #1c3a25; }
     </style>
 </head>
 <body>
 
-    <!-- ОТОБРАЖЕНИЕ ОШИБОК (Если скрипт сломается) -->
-    <div id="error-log" style="color: red; font-size: 12px; display: none;"></div>
+    <div id="error-log" style="color:red; display:none;"></div>
 
-    <!-- ИНТЕРФЕЙС КЛИЕНТА -->
+    <!-- КЛИЕНТ -->
     <div id="clientView" class="client-view">
         <div class="tabs">
             <div class="tab active" id="tabBuy" onclick="setMode('buy')">КУПИТЬ</div>
@@ -43,23 +36,20 @@
         <div class="card">
             <label id="labelGive">Отдаете (RUB):</label>
             <input type="number" id="input1" placeholder="0" oninput="calc()">
-            
             <label id="labelGet">Получаете (USDT):</label>
             <input type="number" id="input2" readonly>
-            
             <div style="font-size:12px; color:#888; text-align:center; margin-top:5px;" id="rateInfo">...</div>
         </div>
 
-        <!-- Поле карты (только для продажи) -->
         <div class="card" id="cardField" style="display:none;">
-            <label>Ваша карта (куда прислать рубли):</label>
+            <label>Ваша карта:</label>
             <input type="text" id="userCard" placeholder="0000 0000 0000 0000">
         </div>
 
-        <button class="btn" onclick="sendOrder()" id="mainBtn">ОФОРМИТЬ</button>
+        <button class="btn" onclick="sendOrder()">ОФОРМИТЬ</button>
     </div>
 
-    <!-- ИНТЕРФЕЙС АДМИНА -->
+    <!-- АДМИН -->
     <div id="adminView" class="admin-view">
         <h2 style="text-align:center;">🧩 P2P ПУЛЬТ</h2>
         <div style="display:flex; gap:10px;">
@@ -76,20 +66,15 @@
     </div>
 
     <script>
-        // ЛОВЕЦ ОШИБОК
-        window.onerror = function(message, source, lineno, colno, error) {
-            document.getElementById('error-log').style.display = 'block';
-            document.getElementById('error-log').innerText = "ОШИБКА: " + message;
-        };
-
+        window.onerror = function(msg) { document.getElementById('error-log').style.display='block'; document.getElementById('error-log').innerText = msg; };
+        
         let tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.ready();
+        tg.expand(); tg.ready();
 
         let currentMode = 'buy';
-        let buyRate = 98.5;
-        let sellRate = 95.0;
+        let buyRate = 98.5; let sellRate = 95.0;
 
+        // Инициализация
         try {
             const urlParams = new URLSearchParams(window.location.search);
             if(urlParams.get('buy')) buyRate = parseFloat(urlParams.get('buy'));
@@ -99,114 +84,57 @@
 
             if (isAdmin) {
                 document.getElementById('adminView').style.display = 'block';
-                
-                // --- НОВАЯ ЛОГИКА РАСПАКОВКИ (BASE64) ---
-                let hash = window.location.hash;
-                // Ищем кусок текста после "data="
-                let match = hash.match(/data=([^&]*)/);
-                
-                if (isAdmin) {
-                document.getElementById('adminView').style.display = 'block';
-                
-                // РАСПАКОВКА BASE64
                 let hash = window.location.hash;
                 let match = hash.match(/data=([^&]*)/);
-                
                 if(match && match[1]) {
-                    try {
-                        // Декодируем Base64 -> JSON -> Объект
-                        // atob - встроенная функция браузера для Base64
-                        let json = decodeURIComponent(escape(window.atob(match[1])));
-                        let orders = JSON.parse(json);
-                        renderAdmin(orders);
-                    } catch(e) {
-                        alert("Ошибка чтения данных: " + e);
-                    }
+                    // Декодируем Base64 с поддержкой UTF-8
+                    let json = decodeURIComponent(escape(window.atob(match[1])));
+                    let orders = JSON.parse(json);
+                    renderAdmin(orders);
                 }
-            }
+            } else {
                 document.getElementById('clientView').style.display = 'block';
                 setMode('buy');
             }
-        } catch (e) {
-            alert("Ошибка инициализации: " + e);
-        }
+        } catch (e) { alert("Init Error: " + e); }
 
-        // ... ДАЛЬШЕ ИДУТ ФУНКЦИИ setMode, calc, renderAdmin и т.д. (их не трогай) ...
-
-        // --- ФУНКЦИИ КЛИЕНТА ---
+        // --- КЛИЕНТ ---
         function setMode(mode) {
             currentMode = mode;
-            // Очистка полей
-            document.getElementById('input1').value = "";
-            document.getElementById('input2').value = "";
-            
+            document.getElementById('input1').value = ""; document.getElementById('input2').value = "";
             if (mode === 'buy') {
-                // Визуал
-                document.getElementById('tabBuy').classList.add('active');
-                document.getElementById('tabSell').classList.remove('active');
+                document.getElementById('tabBuy').classList.add('active'); document.getElementById('tabSell').classList.remove('active');
                 document.getElementById('cardField').style.display = 'none';
-                
-                // Тексты
-                document.getElementById('labelGive').innerText = "Отдаете (RUB):";
-                document.getElementById('labelGet').innerText = "Получаете (USDT):";
+                document.getElementById('labelGive').innerText = "Отдаете (RUB):"; document.getElementById('labelGet').innerText = "Получаете (USDT):";
                 document.getElementById('rateInfo').innerText = `Курс: ${buyRate} RUB`;
-                document.getElementById('mainBtn').innerText = "КУПИТЬ USDT";
             } else {
-                // Визуал
-                document.getElementById('tabBuy').classList.remove('active');
-                document.getElementById('tabSell').classList.add('active');
+                document.getElementById('tabBuy').classList.remove('active'); document.getElementById('tabSell').classList.add('active');
                 document.getElementById('cardField').style.display = 'block';
-                
-                // Тексты
-                document.getElementById('labelGive').innerText = "Отдаете (USDT):";
-                document.getElementById('labelGet').innerText = "Получаете (RUB):";
+                document.getElementById('labelGive').innerText = "Отдаете (USDT):"; document.getElementById('labelGet').innerText = "Получаете (RUB):";
                 document.getElementById('rateInfo').innerText = `Курс: ${sellRate} RUB`;
-                document.getElementById('mainBtn').innerText = "ПРОДАТЬ USDT";
             }
         }
 
         function calc() {
             let val = parseFloat(document.getElementById('input1').value);
-            if (isNaN(val)) {
-                document.getElementById('input2').value = "";
-                return;
-            }
-
-            if (currentMode === 'buy') {
-                document.getElementById('input2').value = (val / buyRate).toFixed(2);
-            } else {
-                document.getElementById('input2').value = (val * sellRate).toFixed(0);
-            }
+            if (isNaN(val)) { document.getElementById('input2').value = ""; return; }
+            document.getElementById('input2').value = currentMode === 'buy' ? (val / buyRate).toFixed(2) : (val * sellRate).toFixed(0);
         }
 
         function sendOrder() {
             let val1 = document.getElementById('input1').value;
             let val2 = document.getElementById('input2').value;
             let card = document.getElementById('userCard').value;
+            if (!val1) return;
 
-            // Проверки
-            if (!val1 || parseFloat(val1) <= 0) {
-                tg.showAlert("Введите сумму!");
-                return;
-            }
-            if (currentMode === 'sell' && card.length < 5) {
-                tg.showAlert("Введите номер карты!");
-                return;
-            }
-
-            let data = {
+            tg.sendData(JSON.stringify({
                 action: currentMode === 'buy' ? 'create_buy_order' : 'create_sell_order',
-                amount_give: val1,
-                amount_get: val2,
-                user_card: card
-            };
-
-            tg.sendData(JSON.stringify(data));
+                amount_give: val1, amount_get: val2, user_card: card
+            }));
         }
 
-        // --- ФУНКЦИИ АДМИНА ---
-        let selectedBuyer = null;
-        let selectedSeller = null;
+        // --- АДМИН ---
+        let selectedBuyer = null; let selectedSeller = null;
 
         function renderAdmin(orders) {
             let bList = document.getElementById('buyersList');
@@ -215,22 +143,18 @@
             orders.forEach(o => {
                 let div = document.createElement('div');
                 div.className = 'order-item';
-                
                 if (o.type === 'buy') {
                     div.innerHTML = `<b>@${o.username}</b><br>Хочет: ${o.usdt} USDT<br>Платит: ${o.rub} RUB`;
                     div.onclick = () => {
-                        // Снять выделение с других
                         Array.from(bList.children).forEach(c => c.classList.remove('selected'));
-                        div.classList.add('selected');
-                        selectedBuyer = o;
+                        div.classList.add('selected'); selectedBuyer = o;
                     };
                     bList.appendChild(div);
                 } else {
                     div.innerHTML = `<b>@${o.username}</b><br>Продает: ${o.usdt} USDT<br>Карта: ${o.card}`;
                     div.onclick = () => {
                         Array.from(sList.children).forEach(c => c.classList.remove('selected'));
-                        div.classList.add('selected');
-                        selectedSeller = o;
+                        div.classList.add('selected'); selectedSeller = o;
                     };
                     sList.appendChild(div);
                 }
@@ -238,17 +162,13 @@
         }
 
         function matchOrders() {
-            if (!selectedBuyer || !selectedSeller) {
-                tg.showAlert("Выберите 1 покупателя и 1 продавца!");
-                return;
-            }
-            
-            tg.showConfirm(`Связать @${selectedBuyer.username} и @${selectedSeller.username}?`, function(ok) {
+            if (!selectedBuyer || !selectedSeller) { tg.showAlert("Выберите пару!"); return; }
+            tg.showConfirm(`Связать @${selectedBuyer.username} и @${selectedSeller.username}?`, (ok) => {
                 if(ok) {
                     tg.sendData(JSON.stringify({
                         action: 'match_orders',
-                        buyer_id: selectedBuyer.id,
-                        seller_id: selectedSeller.id
+                        buyer_order_id: selectedBuyer.id,
+                        seller_order_id: selectedSeller.id
                     }));
                 }
             });
