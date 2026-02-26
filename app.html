@@ -15,13 +15,10 @@
         
         input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: var(--tg-theme-secondary-bg-color, #f5f5f5); color: var(--tg-theme-text-color, #000); }
         
-        /* Переключатель Купить/Продать */
+        /* Табы */
         .tabs { display: flex; margin-bottom: 15px; background: var(--tg-theme-secondary-bg-color, #eee); border-radius: 10px; padding: 4px; }
         .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; }
-        
-        /* ИСПРАВЛЕННАЯ СТРОКА НИЖЕ (shadow -> box-shadow) */
         .tab.active { background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        
         .tab-buy.active { color: #2ecc71; }
         .tab-sell.active { color: #e74c3c; }
 
@@ -41,12 +38,14 @@
             <div class="tab tab-sell" onclick="setMode('sell')">Продать</div>
         </div>
 
-        <label>Сумма (USDT):</label>
-        <input type="number" id="inp-amount" placeholder="100" oninput="calc()">
+        <!-- ТЕПЕРЬ ТУТ РУБЛИ -->
+        <label>Сумма (RUB):</label>
+        <input type="number" id="inp-amount" placeholder="5000" oninput="calc()">
         
         <div class="info-row">
             <span>Курс: <b id="current-rate">...</b></span>
-            <span>Итого: <b id="result-rub">0 RUB</b></span>
+            <!-- ТЕПЕРЬ ТУТ USDT -->
+            <span>Выйдет: <b id="result-usdt">0 USDT</b></span>
         </div>
 
         <div id="card-block" style="display:none;">
@@ -94,10 +93,14 @@
             calc();
         }
 
+        // ОБНОВЛЕННАЯ ЛОГИКА КАЛЬКУЛЯТОРА
         function calc() {
-            const amount = parseFloat(document.getElementById('inp-amount').value) || 0;
+            const amountRub = parseFloat(document.getElementById('inp-amount').value) || 0;
             const rate = (currentMode === 'buy') ? buyRate : sellRate;
-            document.getElementById('result-rub').innerText = (amount * rate).toFixed(2) + " RUB";
+            
+            // Делим рубли на курс, чтобы получить USDT
+            const resUsdt = (amountRub / rate).toFixed(2);
+            document.getElementById('result-usdt').innerText = resUsdt + " USDT";
         }
 
         function submitOrder() {
@@ -105,7 +108,7 @@
             const card = document.getElementById('inp-card').value;
 
             if (!amount || amount <= 0) {
-                tg.showAlert("Введите корректную сумму!");
+                tg.showAlert("Введите сумму в рублях!");
                 return;
             }
             if (currentMode === 'sell' && card.length < 5) {
@@ -116,7 +119,7 @@
             const data = {
                 action: 'create_order',
                 type: currentMode,
-                amount: amount,
+                amount_rub: amount, // Отправляем именно РУБЛИ
                 card: (currentMode === 'sell') ? card : null
             };
             tg.sendData(JSON.stringify(data));
@@ -140,7 +143,8 @@
                     const el = document.createElement('div');
                     el.className = 'order-card';
                     const icon = order.type === 'buy' ? '🟢' : '🔴';
-                    el.innerHTML = `<b>#${order.id} ${icon}</b> | ${order.username}<br>${order.usdt} USDT (~${order.rub} RUB)`;
+                    // Отображаем и рубли и USDT в админке
+                    el.innerHTML = `<b>#${order.id} ${icon}</b> | ${order.username}<br>${order.rub} RUB (~${order.usdt} USDT)`;
                     el.onclick = () => {
                         if (order.type === 'buy') {
                             document.querySelectorAll('.order-card').forEach(c => { if(c.innerHTML.includes('🟢')) c.classList.remove('active-sel'); });
