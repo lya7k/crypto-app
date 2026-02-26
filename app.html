@@ -7,166 +7,167 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: var(--tg-theme-bg-color, #fff); color: var(--tg-theme-text-color, #000); }
-        h1 { text-align: center; font-size: 22px; margin-bottom: 20px; }
+        h1 { text-align: center; font-size: 20px; margin-bottom: 15px; }
         
-        .btn { display: block; width: 100%; padding: 16px; margin: 10px 0; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; color: white; transition: 0.2s; }
+        .btn { display: block; width: 100%; padding: 14px; margin-top: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; color: white; transition: 0.2s; }
         .btn:active { transform: scale(0.98); }
-        .btn-buy { background-color: #2ecc71; }
-        .btn-sell { background-color: #e74c3c; }
-        .btn-match { background-color: #3498db; position: fixed; bottom: 20px; left: 20px; width: calc(100% - 40px); z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .btn-main { background-color: var(--tg-theme-button-color, #3498db); }
+        
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: var(--tg-theme-secondary-bg-color, #f5f5f5); color: var(--tg-theme-text-color, #000); }
+        
+        /* Переключатель Купить/Продать */
+        .tabs { display: flex; margin-bottom: 15px; background: var(--tg-theme-secondary-bg-color, #eee); border-radius: 10px; padding: 4px; }
+        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; }
+        
+        /* ИСПРАВЛЕННАЯ СТРОКА НИЖЕ (shadow -> box-shadow) */
+        .tab.active { background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .tab-buy.active { color: #2ecc71; }
+        .tab-sell.active { color: #e74c3c; }
 
         #user-view, #admin-view { display: none; }
-
-        .order-card { 
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0); 
-            padding: 15px; margin-bottom: 12px; border-radius: 12px; 
-            border: 2px solid transparent;
-            cursor: pointer;
-        }
-        .order-info { margin-bottom: 4px; font-size: 14px; }
-        .active-sel { border-color: #3498db; background-color: rgba(52, 152, 219, 0.1); }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: gray; }
         
-        /* Разделитель для списка */
-        .list-container { padding-bottom: 80px; } 
+        .order-card { background: var(--tg-theme-secondary-bg-color, #f0f0f0); padding: 12px; margin-bottom: 8px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; }
+        .active-sel { border-color: #3498db; }
     </style>
 </head>
 <body>
 
-    <!-- ПОЛЬЗОВАТЕЛЬСКИЙ ИНТЕРФЕЙС -->
+    <!-- ПОЛЬЗОВАТЕЛЬ -->
     <div id="user-view">
-        <h1>💱 Обменник P2P</h1>
-        <div style="background: var(--tg-theme-secondary-bg-color, #eee); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-            <p>📈 Покупка: <b><span id="rate-buy">...</span> RUB</b></p>
-            <p>📉 Продажа: <b><span id="rate-sell">...</span> RUB</b></p>
+        <div class="tabs">
+            <div class="tab tab-buy active" onclick="setMode('buy')">Купить</div>
+            <div class="tab tab-sell" onclick="setMode('sell')">Продать</div>
         </div>
-        <button class="btn btn-buy" onclick="sendAction('create_buy_order')">🟢 Купить USDT</button>
-        <button class="btn btn-sell" onclick="sendAction('create_sell_order')">🔴 Продать USDT</button>
+
+        <label>Сумма (USDT):</label>
+        <input type="number" id="inp-amount" placeholder="100" oninput="calc()">
+        
+        <div class="info-row">
+            <span>Курс: <b id="current-rate">...</b></span>
+            <span>Итого: <b id="result-rub">0 RUB</b></span>
+        </div>
+
+        <div id="card-block" style="display:none;">
+            <label>Ваша карта (для получения рублей):</label>
+            <input type="text" id="inp-card" placeholder="0000 0000 0000 0000">
+        </div>
+
+        <button class="btn btn-main" onclick="submitOrder()">Создать заявку</button>
     </div>
 
-    <!-- АДМИНСКИЙ ИНТЕРФЕЙС -->
+    <!-- АДМИН -->
     <div id="admin-view">
         <h1>⚙️ Пульт оператора</h1>
-        <div id="orders-list" class="list-container">
-            <p style="text-align:center; color:gray;">Загрузка...</p>
-        </div>
-        <button class="btn btn-match" onclick="matchOrders()">🔗 СВЯЗАТЬ ВЫБРАННЫЕ</button>
+        <div id="orders-list">Загрузка...</div>
+        <button class="btn btn-main" style="position:fixed; bottom:20px; width:calc(100% - 40px);" onclick="matchOrders()">🔗 СВЯЗАТЬ</button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); 
+        tg.expand();
 
-        // Парсинг параметров URL
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
+        const buyRate = parseFloat(urlParams.get('buy')) || 90;
+        const sellRate = parseFloat(urlParams.get('sell')) || 85;
 
-        // Элементы
-        const userView = document.getElementById('user-view');
-        const adminView = document.getElementById('admin-view');
-
-        // --- ЛОГИКА ---
-        if (isAdmin) {
-            // == РЕЖИМ АДМИНА ==
-            adminView.style.display = 'block';
-            tg.MainButton.hide(); // Скрываем стандартную кнопку, у нас своя
-
-            const hash = window.location.hash.substring(1); // убираем #
-            const params = new URLSearchParams(hash);
-            const dataBase64 = params.get('data');
-
-            if (dataBase64) {
-                try {
-                    // Правильная декодировка Base64 с поддержкой кириллицы (UTF-8)
-                    const jsonString = decodeURIComponent(escape(window.atob(dataBase64)));
-                    const orders = JSON.parse(jsonString);
-                    renderOrders(orders);
-                } catch (e) {
-                    document.getElementById('orders-list').innerHTML = `<p style="color:red">Ошибка данных: ${e.message}</p>`;
-                }
-            } else {
-                document.getElementById('orders-list').innerHTML = "<p style='text-align:center'>Нет активных заявок</p>";
-            }
-
-        } else {
-            // == РЕЖИМ ЮЗЕРА ==
-            userView.style.display = 'block';
-            document.getElementById('rate-buy').innerText = urlParams.get('buy') || '-';
-            document.getElementById('rate-sell').innerText = urlParams.get('sell') || '-';
-        }
-
-        // --- ФУНКЦИИ ---
-
-        // Отправка действия (Покупка/Продажа)
-        function sendAction(action) {
-            const data = JSON.stringify({ action: action });
-            tg.sendData(data);
-        }
-
-        // Выбор заявок (Админка)
-        let selectedBuyId = null;
+        let currentMode = 'buy';
+        let selectedBuyId = null; 
         let selectedSellId = null;
 
-        function renderOrders(orders) {
-            const list = document.getElementById('orders-list');
-            list.innerHTML = "";
-
-            if (orders.length === 0) {
-                list.innerHTML = "<p style='text-align:center'>Список пуст</p>";
-                return;
-            }
-
-            orders.forEach(order => {
-                const el = document.createElement('div');
-                el.className = 'order-card';
-                
-                // Иконки и текст
-                const typeIcon = order.type === 'buy' ? '🟢 BUY' : '🔴 SELL';
-                const amountText = `${order.usdt} USDT ~ ${order.rub} RUB`;
-                
-                el.innerHTML = `
-                    <div class="order-info"><b>#${order.id}</b> | ${typeIcon}</div>
-                    <div class="order-info">👤 ${order.username}</div>
-                    <div class="order-info">💰 ${amountText}</div>
-                `;
-
-                // Клик по карточке
-                el.onclick = () => {
-                    if (order.type === 'buy') {
-                        // Сброс подсветки у других BUY
-                        document.querySelectorAll('.order-card').forEach(c => {
-                            if(c.innerHTML.includes('🟢')) c.classList.remove('active-sel');
-                        });
-                        selectedBuyId = order.id;
-                    } else {
-                        // Сброс подсветки у других SELL
-                        document.querySelectorAll('.order-card').forEach(c => {
-                            if(c.innerHTML.includes('🔴')) c.classList.remove('active-sel');
-                        });
-                        selectedSellId = order.id;
-                    }
-                    el.classList.add('active-sel');
-                };
-
-                list.appendChild(el);
-            });
+        if (isAdmin) {
+            document.getElementById('admin-view').style.display = 'block';
+            loadAdminData();
+        } else {
+            document.getElementById('user-view').style.display = 'block';
+            setMode('buy');
         }
 
-        // Кнопка "СВЯЗАТЬ"
-        function matchOrders() {
-            if (!selectedBuyId || !selectedSellId) {
-                tg.showAlert("⚠️ Выберите одну заявку на ПОКУПКУ и одну на ПРОДАЖУ!");
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelector('.tab-buy').classList.toggle('active', mode === 'buy');
+            document.querySelector('.tab-sell').classList.toggle('active', mode === 'sell');
+            document.getElementById('card-block').style.display = (mode === 'sell') ? 'block' : 'none';
+            document.getElementById('current-rate').innerText = (mode === 'buy' ? buyRate : sellRate);
+            calc();
+        }
+
+        function calc() {
+            const amount = parseFloat(document.getElementById('inp-amount').value) || 0;
+            const rate = (currentMode === 'buy') ? buyRate : sellRate;
+            document.getElementById('result-rub').innerText = (amount * rate).toFixed(2) + " RUB";
+        }
+
+        function submitOrder() {
+            const amount = parseFloat(document.getElementById('inp-amount').value);
+            const card = document.getElementById('inp-card').value;
+
+            if (!amount || amount <= 0) {
+                tg.showAlert("Введите корректную сумму!");
+                return;
+            }
+            if (currentMode === 'sell' && card.length < 5) {
+                tg.showAlert("Введите номер карты!");
                 return;
             }
 
-            // Формируем JSON для бота
-            const data = JSON.stringify({
+            const data = {
+                action: 'create_order',
+                type: currentMode,
+                amount: amount,
+                card: (currentMode === 'sell') ? card : null
+            };
+            tg.sendData(JSON.stringify(data));
+        }
+
+        function loadAdminData() {
+            const hash = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            const dataBase64 = params.get('data');
+            
+            if (!dataBase64) {
+                document.getElementById('orders-list').innerHTML = "Нет данных";
+                return;
+            }
+            try {
+                const jsonString = decodeURIComponent(escape(window.atob(dataBase64)));
+                const orders = JSON.parse(jsonString);
+                const list = document.getElementById('orders-list');
+                list.innerHTML = "";
+                orders.forEach(order => {
+                    const el = document.createElement('div');
+                    el.className = 'order-card';
+                    const icon = order.type === 'buy' ? '🟢' : '🔴';
+                    el.innerHTML = `<b>#${order.id} ${icon}</b> | ${order.username}<br>${order.usdt} USDT (~${order.rub} RUB)`;
+                    el.onclick = () => {
+                        if (order.type === 'buy') {
+                            document.querySelectorAll('.order-card').forEach(c => { if(c.innerHTML.includes('🟢')) c.classList.remove('active-sel'); });
+                            selectedBuyId = order.id;
+                        } else {
+                            document.querySelectorAll('.order-card').forEach(c => { if(c.innerHTML.includes('🔴')) c.classList.remove('active-sel'); });
+                            selectedSellId = order.id;
+                        }
+                        el.classList.add('active-sel');
+                    };
+                    list.appendChild(el);
+                });
+            } catch (e) {
+                document.getElementById('orders-list').innerHTML = "Ошибка: " + e.message;
+            }
+        }
+
+        function matchOrders() {
+            if (!selectedBuyId || !selectedSellId) {
+                tg.showAlert("Выберите пару!");
+                return;
+            }
+            tg.sendData(JSON.stringify({
                 action: 'match_orders',
                 buy_order_id: selectedBuyId,
                 sell_order_id: selectedSellId
-            });
-
-            // ОТПРАВЛЯЕМ БОТУ (Сработает, если кнопка Reply)
-            tg.sendData(data);
+            }));
         }
     </script>
 </body>
