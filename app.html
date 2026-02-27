@@ -7,24 +7,18 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: var(--tg-theme-bg-color, #fff); color: var(--tg-theme-text-color, #000); }
-        h1 { text-align: center; font-size: 20px; margin-bottom: 15px; }
-        
-        .btn { display: block; width: 100%; padding: 14px; margin-top: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; color: white; transition: 0.2s; }
-        .btn:active { transform: scale(0.98); }
-        .btn-main { background-color: var(--tg-theme-button-color, #3498db); }
-        
+        .btn { display: block; width: 100%; padding: 14px; margin-top: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; color: white; background-color: var(--tg-theme-button-color, #3498db); }
         input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: var(--tg-theme-secondary-bg-color, #f5f5f5); color: var(--tg-theme-text-color, #000); }
+        input:disabled { background-color: #e0e0e0; color: #555; }
         
-        /* Табы */
         .tabs { display: flex; margin-bottom: 15px; background: var(--tg-theme-secondary-bg-color, #eee); border-radius: 10px; padding: 4px; }
-        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; }
+        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; font-weight: bold; }
         .tab.active { background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .tab-buy.active { color: #2ecc71; }
         .tab-sell.active { color: #e74c3c; }
 
         #user-view, #admin-view { display: none; }
         .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: gray; }
-        
         .order-card { background: var(--tg-theme-secondary-bg-color, #f0f0f0); padding: 12px; margin-bottom: 8px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; }
         .active-sel { border-color: #3498db; }
     </style>
@@ -38,29 +32,27 @@
             <div class="tab tab-sell" onclick="setMode('sell')">Продать</div>
         </div>
 
-        <!-- ТЕПЕРЬ ТУТ РУБЛИ -->
         <label>Сумма (RUB):</label>
-        <input type="number" id="inp-amount" placeholder="5000" oninput="calc()">
+        <input type="number" id="inp-amount" placeholder="Введите сумму" oninput="calc()">
         
         <div class="info-row">
             <span>Курс: <b id="current-rate">...</b></span>
-            <!-- ТЕПЕРЬ ТУТ USDT -->
-            <span>Выйдет: <b id="result-usdt">0 USDT</b></span>
+            <span>Итого: <b id="result-usdt">0 USDT</b></span>
         </div>
 
         <div id="card-block" style="display:none;">
-            <label>Ваша карта (для получения рублей):</label>
+            <label>Ваша карта:</label>
             <input type="text" id="inp-card" placeholder="0000 0000 0000 0000">
         </div>
 
-        <button class="btn btn-main" onclick="submitOrder()">Создать заявку</button>
+        <button class="btn" onclick="submitOrder()">Создать заявку</button>
     </div>
 
     <!-- АДМИН -->
     <div id="admin-view">
-        <h1>⚙️ Пульт оператора</h1>
+        <h3 style="text-align:center">Пульт оператора</h3>
         <div id="orders-list">Загрузка...</div>
-        <button class="btn btn-main" style="position:fixed; bottom:20px; width:calc(100% - 40px);" onclick="matchOrders()">🔗 СВЯЗАТЬ</button>
+        <button class="btn" style="position:fixed; bottom:20px; width:calc(100% - 40px);" onclick="matchOrders()">🔗 СВЯЗАТЬ</button>
     </div>
 
     <script>
@@ -69,8 +61,11 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
-        const buyRate = parseFloat(urlParams.get('buy')) || 90;
-        const sellRate = parseFloat(urlParams.get('sell')) || 85;
+        const buyRate = parseFloat(urlParams.get('buy')) || 0;
+        const sellRate = parseFloat(urlParams.get('sell')) || 0;
+        
+        // Получаем лимит из URL
+        const limit = parseFloat(urlParams.get('limit')) || 0;
 
         let currentMode = 'buy';
         let selectedBuyId = null; 
@@ -81,7 +76,19 @@
             loadAdminData();
         } else {
             document.getElementById('user-view').style.display = 'block';
+            setupUserView();
+        }
+
+        function setupUserView() {
             setMode('buy');
+            
+            // Если включен жесткий лимит
+            const inp = document.getElementById('inp-amount');
+            if (limit > 0) {
+                inp.value = limit;
+                inp.disabled = true; // Блокируем ввод
+                calc(); // Сразу считаем
+            }
         }
 
         function setMode(mode) {
@@ -93,14 +100,15 @@
             calc();
         }
 
-        // ОБНОВЛЕННАЯ ЛОГИКА КАЛЬКУЛЯТОРА
         function calc() {
-            const amountRub = parseFloat(document.getElementById('inp-amount').value) || 0;
+            const inp = document.getElementById('inp-amount');
+            const amountRub = parseFloat(inp.value) || 0;
             const rate = (currentMode === 'buy') ? buyRate : sellRate;
             
-            // Делим рубли на курс, чтобы получить USDT
-            const resUsdt = (amountRub / rate).toFixed(2);
-            document.getElementById('result-usdt').innerText = resUsdt + " USDT";
+            if (rate > 0) {
+                const resUsdt = (amountRub / rate).toFixed(2);
+                document.getElementById('result-usdt').innerText = resUsdt + " USDT";
+            }
         }
 
         function submitOrder() {
@@ -108,7 +116,7 @@
             const card = document.getElementById('inp-card').value;
 
             if (!amount || amount <= 0) {
-                tg.showAlert("Введите сумму в рублях!");
+                tg.showAlert("Ошибка суммы!");
                 return;
             }
             if (currentMode === 'sell' && card.length < 5) {
@@ -119,7 +127,7 @@
             const data = {
                 action: 'create_order',
                 type: currentMode,
-                amount_rub: amount, // Отправляем именно РУБЛИ
+                amount_rub: amount,
                 card: (currentMode === 'sell') ? card : null
             };
             tg.sendData(JSON.stringify(data));
@@ -131,19 +139,25 @@
             const dataBase64 = params.get('data');
             
             if (!dataBase64) {
-                document.getElementById('orders-list').innerHTML = "Нет данных";
+                document.getElementById('orders-list').innerHTML = "<p style='text-align:center'>Нет данных. Обновите в боте.</p>";
                 return;
             }
             try {
+                // Декодируем base64 (поддержка кириллицы)
                 const jsonString = decodeURIComponent(escape(window.atob(dataBase64)));
                 const orders = JSON.parse(jsonString);
                 const list = document.getElementById('orders-list');
                 list.innerHTML = "";
+                
+                if(orders.length === 0) {
+                    list.innerHTML = "<p style='text-align:center'>Нет заявок</p>";
+                    return;
+                }
+
                 orders.forEach(order => {
                     const el = document.createElement('div');
                     el.className = 'order-card';
                     const icon = order.type === 'buy' ? '🟢' : '🔴';
-                    // Отображаем и рубли и USDT в админке
                     el.innerHTML = `<b>#${order.id} ${icon}</b> | ${order.username}<br>${order.rub} RUB (~${order.usdt} USDT)`;
                     el.onclick = () => {
                         if (order.type === 'buy') {
