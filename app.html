@@ -48,10 +48,22 @@
         <button class="btn" onclick="submitOrder()">Создать заявку</button>
     </div>
 
-    <!-- АДМИН -->
+<!-- АДМИН -->
     <div id="admin-view">
         <h3 style="text-align:center">Пульт оператора</h3>
-        <div id="orders-list">Загрузка...</div>
+        
+        <!-- Две колонки -->
+        <div style="display: flex; gap: 10px; margin-bottom: 60px;">
+            <div style="flex: 1;">
+                <h4 style="text-align:center; margin: 5px 0; color: #e74c3c;">Продажа 🔴</h4>
+                <div id="orders-sell" style="display: flex; flex-direction: column; gap: 8px;">Загрузка...</div>
+            </div>
+            <div style="flex: 1;">
+                <h4 style="text-align:center; margin: 5px 0; color: #2ecc71;">Покупка 🟢</h4>
+                <div id="orders-buy" style="display: flex; flex-direction: column; gap: 8px;">Загрузка...</div>
+            </div>
+        </div>
+
         <button class="btn" style="position:fixed; bottom:20px; width:calc(100% - 40px);" onclick="matchOrders()">🔗 СВЯЗАТЬ</button>
     </div>
 
