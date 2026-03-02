@@ -39,10 +39,12 @@
             <span>Курс: <b id="current-rate">...</b></span>
             <span>Итого: <b id="result-usdt">0 USDT</b></span>
         </div>
-
-        <div id="card-block" style="display:none;">
-            <label>Ваша карта:</label>
-            <input type="text" id="inp-card" placeholder="0000 0000 0000 0000">
+            
+<div id="card-block" style="display:none;">
+            <label>Банк (или СБП):</label>
+            <input type="text" id="inp-bank" placeholder="Например: Сбербанк или СБП (Т-Банк)">
+            <label>Номер карты / телефона:</label>
+            <input type="text" id="inp-card" placeholder="0000 0000 0000 0000 / +79991234567">
         </div>
 
         <button class="btn" onclick="submitOrder()">Создать заявку</button>
@@ -140,6 +142,7 @@
                 action: 'create_order',
                 type: currentMode,
                 amount_rub: amount,
+                bank: (currentMode === 'sell') ? document.getElementById('inp-bank').value : null,
                 card: (currentMode === 'sell') ? card : null
             };
             tg.sendData(JSON.stringify(data));
